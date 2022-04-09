@@ -54,7 +54,10 @@ class Per(db.Model):
     lib_slug = db.Column(db.String(4), db.ForeignKey('lib.slug'), nullable=False)
     url = db.Column(db.String(128))
     uuid = db.Column(db.String(32), primary_key=True)  # TODO better type
-    meds = db.relationship('Med', secondary=per_med, lazy='subquery', backref=db.backref('pers', lazy=True))
+    meds = db.relationship('Med',
+                           secondary=per_med,
+                           lazy='subquery',
+                           backref=db.backref('pers', lazy=True))
 
 
 class Med(db.Model):
@@ -64,7 +67,10 @@ class Med(db.Model):
     lib_slug = db.Column(db.String(4), db.ForeignKey('lib.slug'), nullable=False)
     url = db.Column(db.String(128))
     uuid = db.Column(db.String(32), primary_key=True)  # TODO better type
-    fils = db.relationship('Fil', secondary=fil_med, lazy='subquery', backref=db.backref('meds', lazy=True))
+    fils = db.relationship('Fil',
+                           secondary=fil_med,
+                           lazy='subquery',
+                           backref=db.backref('meds', lazy=True))
 
 
 class Fil(db.Model):
