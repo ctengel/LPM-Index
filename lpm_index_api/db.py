@@ -3,8 +3,8 @@
 import flask_sqlalchemy
 from . import app
 
-db = flask_sqlalchemy.SQLAlchemy(app)
 app = app.app
+db = flask_sqlalchemy.SQLAlchemy(app)
 
 # https://docs.sqlalchemy.org/en/14/orm/basic_relationships.html#many-to-one
 # https://flask-sqlalchemy.palletsprojects.com/en/2.x/models/

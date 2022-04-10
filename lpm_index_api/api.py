@@ -1,9 +1,12 @@
 """Library Media Person RESTful API"""
 
+import uuid
+import hashlib
 import flask_restx
 from . import app
 from . import db
 
+app = app.app
 api = flask_restx.Api(app,
                       version='0.1',
                       title='LPM Index API',
@@ -46,14 +49,14 @@ class LibList(flask_restx.Resource):
     @libns.doc('list_libs')
     @libns.marshal_list_with(lib)
     def get(self):
-        """Get all tasks"""
+        """Get all libraries"""
         return db.Lib.query.all()
 
     @libns.doc('create_lib')
     @libns.expect(lib)
     @libns.marshal_with(lib, code=201)
     def post(self):
-        """Create task"""
+        """Create library"""
         # TODO restrict
         indict = dict(api.payload)
         newlib = db.Lib(**indict)
@@ -63,7 +66,7 @@ class LibList(flask_restx.Resource):
 
 # NOTE no /lib/s - immuable
 
-@libns.route('/<lib_slug>/med')
+@libns.route('/<lib_slug>/med/')
 @libns.response(404, 'Library not found')
 @libns.param('lib_slug', 'Library slug')
 class LibMed(flask_restx.Resource):
@@ -73,7 +76,7 @@ class LibMed(flask_restx.Resource):
     @libns.marshal_list_with(med)
     def get(self, lib_slug):
         """Get library media"""
-        # TODO ensure persons is not here
+        # TODO omit persons?
         return db.Med.query.filter(db.Med.lib_slug == lib_slug).all()
 
     @libns.doc('create_lib_med')
@@ -84,6 +87,7 @@ class LibMed(flask_restx.Resource):
         indict = dict(api.payload)
         newmed = db.Med(**indict)
         newmed.lib_slug = lib_slug
+        newmed.uuid = str(uuid.uuid1())
         db.db.session.add(newmed)
         db.db.session.commit()
         return newmed, 201
@@ -102,11 +106,12 @@ class MedOne(flask_restx.Resource):
     @libns.marshal_with(med)
     def get(self, lib_slug, med_slug):
         """Get media with persons"""
-        # TODO ensure persons is here
-        return db.Med.query.get_or_404(db.Med.lib_slug == lib_slug, db.Med.slug == med_slug)
+        # NOTE persons is here
+        # TODO first_or_404?
+        return db.Med.query.filter(db.Med.lib_slug == lib_slug, db.Med.slug == med_slug).one()
 
 
-@libns.route('/<lib_slug>/per')
+@libns.route('/<lib_slug>/per/')
 @libns.response(404, 'Library not found')
 @libns.param('lib_slug', 'Library slug')
 class LibPer(flask_restx.Resource):
@@ -116,7 +121,7 @@ class LibPer(flask_restx.Resource):
     @libns.marshal_list_with(per)
     def get(self, lib_slug):
         """Get library persons"""
-        # TODO ensure persons is not here
+        # NOTE media is not here
         return db.Per.query.filter(db.Per.lib_slug == lib_slug).all()
 
     @libns.doc('create_lib_per')
@@ -127,6 +132,7 @@ class LibPer(flask_restx.Resource):
         indict = dict(api.payload)
         newper = db.Per(**indict)
         newper.lib_slug = lib_slug
+        newper.uuid = str(uuid.uuid1())
         db.db.session.add(newper)
         db.db.session.commit()
         return newper, 201
@@ -145,7 +151,8 @@ class MedFil(flask_restx.Resource):
     @libns.marshal_with(med)
     def get(self, lib_slug, med_slug):
         """Get the files that contain this media"""
-        return db.Med.query.get_or_404(db.Med.lib_slug == lib_slug, db.Med.slug == med_slug).fils
+        # TODO first_or_404?
+        return db.Med.query.filter(db.Med.lib_slug == lib_slug, db.Med.slug == med_slug).one().fils
 
 
 @libns.route('/<lib_slug>/per/<per_slug>/med')
@@ -159,15 +166,19 @@ class PerMed(flask_restx.Resource):
     @libns.marshal_with(med)
     def get(self, lib_slug, per_slug):
         """Get the media for this person"""
-        return db.Per.query.get_or_404(db.Per.lib_slug == lib_slug, db.Per.slug == per_slug).meds
+        # TODO first_or_404?
+        return db.Per.query.filter(db.Per.lib_slug == lib_slug, db.Per.slug == per_slug).one().meds
 
     @libns.doc('link_per_med')
     @libns.expect(med)
     @libns.marshal_with(med, code=201)
     def post(self, lib_slug, per_slug):
         """Link this person to a media"""
-        myper = db.Per.query.get_or_404(db.Per.lib_slug == lib_slug, db.Per.slug == per_slug)
-        mymed = db.Med.query.filter(db.Med.lib_slug == lib_slug, db.Med.slug == api.payload.slug)
+        # TODO first_or_404?
+        myper = db.Per.query.filter(db.Per.lib_slug == lib_slug, db.Per.slug == per_slug).one()
+        # TODO 4xx
+        mymed = db.Med.query.filter(db.Med.lib_slug == lib_slug,
+                                    db.Med.slug == api.payload['slug']).one()
         # TODO deal with truly new media
         myper.meds.append(mymed)
         db.db.session.commit()
@@ -190,7 +201,13 @@ class FilAll(flask_restx.Resource):
         # TODO allow non truly new file with new media association
         # TODO allow lazy or new media file associations
         indict = dict(api.payload)
-        newfil = db.Lib(**indict)
+        mymeds = indict.pop('meds', [])
+        newfil = db.Fil(**indict)
+        newfil.digest = hashlib.sha1(newfil.url.encode()).hexdigest()
+        for mymed in mymeds:
+            foundmed = db.Med.query.filter(db.Med.lib_slug == mymed['lib_slug'],
+                                           db.Med.slug == mymed['slug']).one()
+            newfil.meds.append(foundmed)
         db.db.session.add(newfil)
         db.db.session.commit()
         return newfil, 201
@@ -208,7 +225,8 @@ class FilOne(flask_restx.Resource):
     @filns.marshal_with(fil)
     def get(self, fil_digest):
         """Get file info"""
-        # TODO ensure media is here
+        # NOTE media is here
+        # TODO omit persons
         return db.Fil.query.get_or_404(fil_digest)
 
 # TODO add actual links instead of objects/slugs

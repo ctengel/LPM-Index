@@ -5,7 +5,7 @@ import flask
 
 # Create the Flask application and the Flask-SQLAlchemy object.
 app = flask.Flask(__name__)
-app.config.from_envvar('LPMIA_SETTINGS', silent=True)
+app.config.from_envvar('LPMIA_SETTINGS')
 
 
 #if __name__ == '__main__':
