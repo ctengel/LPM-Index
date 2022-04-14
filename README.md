@@ -1,6 +1,8 @@
 # LPM-Index
 Library Person Media Index
 
+**Note this project is not being actively developed**; however, it may be an example of using flask-restx with sqlalchemy.
+
 A SQL RDBMS based system to track libraries and their constituent people and media, along with appearances, and files depicting said media.
 
 ## API
